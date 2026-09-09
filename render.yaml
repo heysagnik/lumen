@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: lumen-api
+    runtime: node
+    rootDir: apps/api
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 4000
+      - key: DATABASE_URL
+        sync: false
+      - key: CLOUDFLARE_ACCOUNT_ID
+        sync: false
+      - key: CLOUDFLARE_API_TOKEN
+        sync: false
+      - key: CLOUDFLARE_AI_GATEWAY
+        value: lumen
+      - key: CLOUDFLARE_MODEL
+        value: workers-ai/@cf/zai-org/glm-5.3-flash
+
+  - type: web
+    name: lumen-web
+    runtime: node
+    rootDir: apps/web
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        sync: false
