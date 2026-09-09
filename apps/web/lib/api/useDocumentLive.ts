@@ -1,22 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { DocumentStatus, Fact, FactRelationSummary } from "@lumen/shared";
+import type { DocumentStatus } from "@lumen/shared";
 import { API_URL } from "../apiUrl";
 
 const POLL_INTERVAL_MS = 2000;
 
-export function useDocumentLive(
-  documentId: string,
-  initialStatus: DocumentStatus,
-  initialFacts: Fact[],
-  initialRelationshipCount: number,
-  initialRelationSummary: Record<string, FactRelationSummary>,
-) {
+interface DocumentTotals {
+  factCount: number;
+  relationshipCount: number;
+}
+
+export function useDocumentLive(documentId: string, initialStatus: DocumentStatus, initialTotals: DocumentTotals) {
   const [status, setStatus] = useState(initialStatus);
-  const [facts, setFacts] = useState(initialFacts);
-  const [relationshipCount, setRelationshipCount] = useState(initialRelationshipCount);
-  const [relationSummary, setRelationSummary] = useState(initialRelationSummary);
+  const [totals, setTotals] = useState(initialTotals);
 
   useEffect(() => {
     if (status.status !== "processing") return;
@@ -24,20 +21,18 @@ export function useDocumentLive(
     const interval = setInterval(async () => {
       const [statusResponse, factsResponse] = await Promise.all([
         fetch(`${API_URL}/v1/documents/${documentId}/status`),
-        fetch(`${API_URL}/v1/documents/${documentId}/facts`),
+        fetch(`${API_URL}/v1/documents/${documentId}/facts?limit=0`),
       ]);
 
       if (statusResponse.ok) setStatus(await statusResponse.json());
       if (factsResponse.ok) {
         const data = await factsResponse.json();
-        setFacts(data.facts);
-        setRelationshipCount(data.relationshipCount);
-        setRelationSummary(data.relationSummary ?? {});
+        setTotals({ factCount: data.total, relationshipCount: data.relationshipCount });
       }
     }, POLL_INTERVAL_MS);
 
     return () => clearInterval(interval);
   }, [documentId, status.status]);
 
-  return { status, facts, relationshipCount, relationSummary };
+  return { status, ...totals };
 }

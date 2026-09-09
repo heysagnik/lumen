@@ -43,6 +43,14 @@ facts + relationships stored, queryable per document or per fact
 
 **Key tables**: `documents`, `chunks` (page text segments), `facts` (extracted claims with embeddings), `fact_relationships` (corroborates/contradicts links between facts), `attribute_registry` (canonical attribute names + aliases).
 
+## REST API
+
+Lumen provides a full REST API for programmatic document ingestion, status polling, grounded fact extraction, and cross-document contradiction and corroboration analysis.
+
+ **[http://lumen.sagnik.fun/getting-started](http://lumen.sagnik.fun/getting-started)**
+
+You can also refer to [`docs/API.md`](docs/API.md) for complete endpoint references, payload schemas, and `curl` examples for the hosted instance.
+
 ## Running locally
 
 ```bash
@@ -60,11 +68,11 @@ CREATE EXTENSION IF NOT EXISTS vector;
 ## TODO:
 
 - [ ] **PDF binaries are stored inline in Postgres** (`documents.file_data` as `bytea`) and served directly from the DB on every view (`GET /v1/documents/:id/file`). This is the single biggest driver of database egress/bandwidth — every document view round-trips the full PDF through Postgres. Should move to object storage (R2/S3) with the DB holding only a reference.
-- [ ] **No pagination** on list/fact endpoints — large documents return every fact and relationship in one response.
-- [ ] **List queries select full rows** (`SELECT *`) instead of the columns actually used, adding unnecessary payload on every request.
-- [ ] **No caching layer** — repeated reads of the same document/facts hit Postgres every time.
-- [ ] **Attribute registry never merges or prunes** — canonical attributes only grow; near-duplicate attributes from borderline similarity scores accumulate over time.
-- [ ] **Relationship checking is per-new-fact, nearest-neighbor only** (top 4 neighbors within a distance threshold) — it won't catch contradictions against facts outside that similarity radius.
+- [x] **No pagination** on list/fact endpoints — large documents return every fact and relationship in one response. Fixed: `GET /v1/documents/:id/facts` now takes `limit`/`offset`/`q`/`filter`, with search and filtering done server-side.
+- [x] **List queries select full rows** (`SELECT *`) instead of the columns actually used, adding unnecessary payload on every request. Fixed across all client-facing routes.
+- [x] **No caching layer** — repeated reads of the same document/facts hit Postgres every time. Fixed: in-memory TTL cache on the facts list endpoint, invalidated on writes.
+- [x] **Attribute registry never merges or prunes** — canonical attributes only grow; near-duplicate attributes from borderline similarity scores accumulate over time. Fixed: `apps/api/src/scripts/mergeAttributeRegistry.ts` merges near-duplicate canonical attributes.
+- [x] **Relationship checking is per-new-fact, nearest-neighbor only** (top 4 neighbors within a distance threshold) — it won't catch contradictions against facts outside that similarity radius. Widened defaults (12 neighbors, 0.5 distance), tunable via `RELATIONSHIP_NEIGHBOR_LIMIT`/`RELATIONSHIP_MAX_NEIGHBOR_DISTANCE`.
 - [ ] **No auth** — the API has no access control; anyone with the URL can upload documents or read facts.
 - [ ] **Sync vs. async processing is a hardcoded page-count threshold** (`SYNC_PAGE_THRESHOLD`) rather than a job queue, so large documents processed synchronously would time out the request.
 - [ ] **No automated tests** currently in the pipeline code.

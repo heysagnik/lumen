@@ -1,13 +1,53 @@
 import { Router } from "express";
 import multer from "multer";
-import { asc, eq, inArray, or } from "drizzle-orm";
+import { and, asc, eq, exists, ilike, inArray, or, sql } from "drizzle-orm";
 import { db } from "../lib/db/client.js";
 import { documents, facts, factRelationships } from "../lib/db/schema.js";
 import { extractPages } from "../lib/pdf/extract.js";
 import { processDocument, SYNC_PAGE_THRESHOLD } from "../lib/pipeline/processDocument.js";
 import { asyncHandler } from "../asyncHandler.js";
+import { getCachedFacts, setCachedFacts } from "../lib/cache/factsCache.js";
 
 const upload = multer({ storage: multer.memoryStorage() });
+
+const DEFAULT_FACTS_PAGE_SIZE = 100;
+const MAX_FACTS_PAGE_SIZE = 500;
+
+interface FactsResponse {
+  facts: Array<Record<string, unknown>>;
+  total: number;
+  limit: number;
+  offset: number;
+  relationshipCount: number;
+  relationSummary: Record<string, Record<string, number>>;
+}
+
+const RELATION_FILTERS = ["corroborates", "contradicts", "reconciled"] as const;
+type RelationFilter = (typeof RELATION_FILTERS)[number];
+
+function isRelationFilter(value: unknown): value is RelationFilter {
+  return typeof value === "string" && (RELATION_FILTERS as readonly string[]).includes(value);
+}
+
+const factListColumns = {
+  id: facts.id,
+  documentId: facts.documentId,
+  chunkId: facts.chunkId,
+  pageNumber: facts.pageNumber,
+  entity: facts.entity,
+  attribute: facts.attribute,
+  value: facts.value,
+  unit: facts.unit,
+  qualifiers: facts.qualifiers,
+  quote: facts.quote,
+  confidence: facts.confidence,
+} as const;
+
+function parseIntParam(raw: unknown, fallback: number, max: number): number {
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 0) return fallback;
+  return Math.min(Math.floor(parsed), max);
+}
 
 export const documentsRouter = Router();
 
@@ -37,9 +77,16 @@ documentsRouter.post(
         return;
       }
       const [docFacts, docRelationships] = await Promise.all([
-        db.select().from(facts).where(eq(facts.documentId, doc.id)),
+        db.select(factListColumns).from(facts).where(eq(facts.documentId, doc.id)),
         db
-          .select()
+          .select({
+            id: factRelationships.id,
+            factAId: factRelationships.factAId,
+            factBId: factRelationships.factBId,
+            relationType: factRelationships.relationType,
+            explanation: factRelationships.explanation,
+            confidence: factRelationships.confidence,
+          })
           .from(factRelationships)
           .innerJoin(facts, eq(factRelationships.factAId, facts.id))
           .where(eq(facts.documentId, doc.id)),
@@ -53,10 +100,19 @@ documentsRouter.post(
   }),
 );
 
+const documentStatusColumns = {
+  id: documents.id,
+  filename: documents.filename,
+  status: documents.status,
+  pagesProcessed: documents.pagesProcessed,
+  pageCount: documents.pageCount,
+  error: documents.error,
+} as const;
+
 documentsRouter.get(
   "/:id",
   asyncHandler(async (req, res) => {
-    const [doc] = await db.select().from(documents).where(eq(documents.id, req.params.id)).limit(1);
+    const [doc] = await db.select(documentStatusColumns).from(documents).where(eq(documents.id, req.params.id)).limit(1);
     if (!doc) {
       res.status(404).json({ error: "Document not found" });
       return;
@@ -75,7 +131,7 @@ documentsRouter.get(
 documentsRouter.get(
   "/:id/status",
   asyncHandler(async (req, res) => {
-    const [doc] = await db.select().from(documents).where(eq(documents.id, req.params.id)).limit(1);
+    const [doc] = await db.select(documentStatusColumns).from(documents).where(eq(documents.id, req.params.id)).limit(1);
     if (!doc) {
       res.status(404).json({ error: "Document not found" });
       return;
@@ -93,18 +149,63 @@ documentsRouter.get(
   "/:id/facts",
   asyncHandler(async (req, res) => {
     const documentId = req.params.id;
+    const limit = parseIntParam(req.query.limit, DEFAULT_FACTS_PAGE_SIZE, MAX_FACTS_PAGE_SIZE);
+    const offset = parseIntParam(req.query.offset, 0, Number.MAX_SAFE_INTEGER);
+    const query = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    const filter = isRelationFilter(req.query.filter) ? req.query.filter : null;
 
-    const rows = await db
-      .select()
-      .from(facts)
-      .where(eq(facts.documentId, documentId))
-      .orderBy(asc(facts.pageNumber), asc(facts.createdAt));
+    const cacheKey = `${documentId}:${limit}:${offset}:${query}:${filter ?? "all"}`;
+    const cached = getCachedFacts<FactsResponse>(documentId, cacheKey);
+    if (cached) {
+      res.json(cached);
+      return;
+    }
+
+    const searchCondition = query
+      ? or(
+          ilike(facts.entity, `%${query}%`),
+          ilike(facts.attribute, `%${query}%`),
+          ilike(facts.value, `%${query}%`),
+          ilike(facts.unit, `%${query}%`),
+        )
+      : undefined;
+
+    const filterCondition = filter
+      ? exists(
+          db
+            .select({ one: sql`1` })
+            .from(factRelationships)
+            .where(
+              and(
+                eq(factRelationships.relationType, filter),
+                or(eq(factRelationships.factAId, facts.id), eq(factRelationships.factBId, facts.id)),
+              ),
+            ),
+        )
+      : undefined;
+
+    const whereClause = and(eq(facts.documentId, documentId), searchCondition, filterCondition);
+
+    const [rows, [{ total }], [{ relationshipCount }]] = await Promise.all([
+      db
+        .select(factListColumns)
+        .from(facts)
+        .where(whereClause)
+        .orderBy(asc(facts.pageNumber), asc(facts.createdAt))
+        .limit(limit)
+        .offset(offset),
+      db.select({ total: sql<number>`count(*)::int` }).from(facts).where(whereClause),
+      db
+        .select({ relationshipCount: sql<number>`count(*)::int` })
+        .from(factRelationships)
+        .innerJoin(facts, eq(factRelationships.factAId, facts.id))
+        .where(eq(facts.documentId, documentId)),
+    ]);
 
     const factIds = rows.map((fact) => fact.id);
     const relationRows = factIds.length
       ? await db
           .select({
-            id: factRelationships.id,
             factAId: factRelationships.factAId,
             factBId: factRelationships.factBId,
             relationType: factRelationships.relationType,
@@ -123,7 +224,9 @@ documentsRouter.get(
       }
     }
 
-    res.json({ facts: rows, relationshipCount: relationRows.length, relationSummary });
+    const response: FactsResponse = { facts: rows, total, limit, offset, relationshipCount, relationSummary };
+    setCachedFacts(documentId, cacheKey, response);
+    res.json(response);
   }),
 );
 

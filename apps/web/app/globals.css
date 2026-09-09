@@ -106,20 +106,25 @@ p {
   font-variant-numeric: tabular-nums;
 }
 
+html,
+body,
 .thin-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: var(--border-strong) transparent;
 }
 
+::-webkit-scrollbar,
 .thin-scrollbar::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
+::-webkit-scrollbar-track,
 .thin-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
 
+::-webkit-scrollbar-thumb,
 .thin-scrollbar::-webkit-scrollbar-thumb {
   background-color: var(--border-strong);
   border-radius: 9999px;
@@ -127,9 +132,11 @@ p {
   background-clip: padding-box;
 }
 
+::-webkit-scrollbar-thumb:hover,
 .thin-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: var(--subtle);
 }
+
 
 @keyframes progress-sweep {
   0% {

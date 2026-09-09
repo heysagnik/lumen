@@ -1,4 +1,5 @@
-import type { DocumentStatus, Fact, FactRelationSummary } from "@lumen/shared";
+import type { DocumentStatus } from "@lumen/shared";
+import type { FactsPage } from "@/lib/api/useFacts";
 import { API_URL } from "@/lib/apiUrl";
 import { DocumentWorkspace } from "@/components/DocumentWorkspace";
 
@@ -24,13 +25,9 @@ export default async function DocumentPage({ params }: { params: Promise<{ id: s
   }
 
   const doc: DocumentDetail = await docResponse.json();
-  const {
-    facts,
-    relationshipCount,
-    relationSummary,
-  }: { facts: Fact[]; relationshipCount: number; relationSummary: Record<string, FactRelationSummary> } = factsResponse.ok
+  const initialFactsPage: FactsPage = factsResponse.ok
     ? await factsResponse.json()
-    : { facts: [], relationshipCount: 0, relationSummary: {} };
+    : { facts: [], total: 0, relationshipCount: 0, relationSummary: {} };
 
   return (
     <main className="flex-1 flex flex-col min-h-0">
@@ -43,9 +40,7 @@ export default async function DocumentPage({ params }: { params: Promise<{ id: s
           pages_total: doc.pages_total,
           error: doc.error,
         }}
-        initialFacts={facts}
-        initialRelationshipCount={relationshipCount}
-        initialRelationSummary={relationSummary}
+        initialFactsPage={initialFactsPage}
       />
     </main>
   );

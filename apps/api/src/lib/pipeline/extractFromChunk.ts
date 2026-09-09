@@ -4,6 +4,7 @@ import { extractFacts } from "../llm/extractFacts.js";
 import { embedTexts } from "../embeddings/embed.js";
 import { isQuoteGrounded } from "./grounding.js";
 import type { AttributeResolver } from "./attributeRegistry.js";
+import { invalidateFactsCache } from "../cache/factsCache.js";
 
 interface ExtractContext {
   documentId: string;
@@ -47,5 +48,6 @@ export async function extractFactsFromChunk(ctx: ExtractContext): Promise<string
     )
     .returning({ id: facts.id });
 
+  if (inserted.length > 0) invalidateFactsCache(ctx.documentId);
   return inserted.map((row) => row.id);
 }

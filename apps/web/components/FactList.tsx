@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 import type { DocumentStatus, Fact, FactRelationSummary } from "@lumen/shared";
+import { useFacts, type FactsPage, type RelationFilter } from "@/lib/api/useFacts";
 
 const FALLBACK_PAGE_SIZE = 8;
-
-type RelationFilter = "all" | "corroborates" | "contradicts" | "reconciled";
 
 const RELATION_PRIORITY: Array<keyof FactRelationSummary> = ["contradicts", "reconciled", "corroborates"];
 
@@ -27,12 +28,6 @@ function relationSignal(summary: FactRelationSummary | undefined) {
   return { dominant };
 }
 
-function matchesSearch(fact: Fact, query: string): boolean {
-  if (!query) return true;
-  const haystack = `${fact.entity} ${fact.attribute} ${fact.value} ${fact.unit ?? ""}`.toLowerCase();
-  return haystack.includes(query);
-}
-
 function FactSkeleton() {
   return (
     <div className="flex flex-col gap-1.5 px-3 py-2.5">
@@ -49,17 +44,17 @@ function FactSkeleton() {
 }
 
 export function FactList({
-  facts,
+  documentId,
   selectedFactId,
   onSelect,
   documentStatus,
-  relationSummary,
+  initialFactsPage,
 }: {
-  facts: Fact[];
+  documentId: string;
   selectedFactId: string | null;
   onSelect: (fact: Fact) => void;
   documentStatus: DocumentStatus["status"];
-  relationSummary: Record<string, FactRelationSummary>;
+  initialFactsPage: FactsPage;
 }) {
   const listRef = useRef<HTMLUListElement>(null);
   const firstItemRef = useRef<HTMLLIElement>(null);
@@ -82,28 +77,27 @@ export function FactList({
     if (firstItemRef.current) setItemHeight(firstItemRef.current.offsetHeight);
   });
 
-  const normalizedQuery = query.trim().toLowerCase();
-  const filteredFacts = useMemo(() => {
-    return facts.filter((fact) => {
-      if (!matchesSearch(fact, normalizedQuery)) return false;
-      if (filter === "all") return true;
-      return (relationSummary[fact.id]?.[filter] ?? 0) > 0;
-    });
-  }, [facts, normalizedQuery, filter, relationSummary]);
-
   const pageSize = itemHeight > 0 && listHeight > 0 ? Math.max(1, Math.floor(listHeight / itemHeight)) : FALLBACK_PAGE_SIZE;
-  const pageCount = Math.max(1, Math.ceil(filteredFacts.length / pageSize));
 
   useEffect(() => {
     setPage(0);
-  }, [normalizedQuery, filter]);
+  }, [query, filter]);
+
+  const { facts, total, relationSummary, loading } = useFacts({
+    documentId,
+    pageSize,
+    page,
+    query: query.trim(),
+    filter,
+    isProcessing: documentStatus === "processing",
+    initialData: page === 0 && !query && filter === "all" ? initialFactsPage : undefined,
+  });
+
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
 
   useEffect(() => {
-    if (page > pageCount - 1) setPage(pageCount - 1);
+    if (page > pageCount - 1) setPage(Math.max(0, pageCount - 1));
   }, [page, pageCount]);
-
-  const pageStart = page * pageSize;
-  const pageFacts = filteredFacts.slice(pageStart, pageStart + pageSize);
 
   const toolbar = (
     <div className="border-b shrink-0 flex flex-col gap-2 px-3 pt-3 pb-2.5">
@@ -144,7 +138,7 @@ export function FactList({
     </div>
   );
 
-  if (facts.length === 0) {
+  if (total === 0 && !loading) {
     if (documentStatus === "processing") {
       return (
         <div className="p-1.5">
@@ -164,6 +158,18 @@ export function FactList({
       );
     }
 
+    if (query || filter !== "all") {
+      return (
+        <div className="flex flex-col h-full min-h-0">
+          {toolbar}
+          <div className="flex flex-col items-center justify-center flex-1 text-center px-6 gap-1">
+            <p className="text-sm font-medium text-muted">No matching facts</p>
+            <p className="text-xs text-subtle">Try a different search or filter.</p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex flex-col items-center justify-center h-full text-center px-6 gap-2">
         <p className="text-sm font-medium text-muted">No facts found</p>
@@ -175,46 +181,39 @@ export function FactList({
   return (
     <div className="flex flex-col h-full min-h-0">
       {toolbar}
-      {filteredFacts.length === 0 ? (
-        <div className="flex flex-col items-center justify-center flex-1 text-center px-6 gap-1">
-          <p className="text-sm font-medium text-muted">No matching facts</p>
-          <p className="text-xs text-subtle">Try a different search or filter.</p>
-        </div>
-      ) : (
-        <ul ref={listRef} className="overflow-hidden flex-1 min-h-0 p-1.5">
-          {pageFacts.map((fact, index) => {
-            const isSelected = selectedFactId === fact.id;
-            const signal = relationSignal(relationSummary[fact.id]);
-            return (
-              <li key={fact.id} ref={index === 0 ? firstItemRef : undefined} className="animate-[fact-enter_200ms_ease-out]">
-                <button
-                  onClick={() => onSelect(fact)}
-                  className={`flex items-start gap-2 w-full text-left px-3 py-2.5 rounded-lg transition-colors duration-100 active:scale-[0.99] ${
-                    isSelected ? "bg-accent/10" : "hover:bg-foreground/5"
-                  }`}
-                >
-                  <span
-                    className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${signal ? RELATION_DOT[signal.dominant] : "bg-transparent"}`}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className="font-medium text-sm truncate">{fact.entity}</span>
-                      <span className="text-xs text-subtle shrink-0 tabular-nums">p.{fact.pageNumber}</span>
-                    </div>
-                    <div className="text-sm text-muted truncate">
-                      {fact.attribute}: <span className="text-foreground">{fact.value} {fact.unit ?? ""}</span>
-                    </div>
+      <ul ref={listRef} className="overflow-hidden flex-1 min-h-0 p-1.5">
+        {facts.map((fact, index) => {
+          const isSelected = selectedFactId === fact.id;
+          const signal = relationSignal(relationSummary[fact.id]);
+          return (
+            <li key={fact.id} ref={index === 0 ? firstItemRef : undefined} className="animate-[fact-enter_200ms_ease-out]">
+              <button
+                onClick={() => onSelect(fact)}
+                className={`flex items-start gap-2 w-full text-left px-3 py-2.5 rounded-lg transition-colors duration-100 active:scale-[0.99] ${
+                  isSelected ? "bg-accent/10" : "hover:bg-foreground/5"
+                }`}
+              >
+                <span
+                  className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${signal ? RELATION_DOT[signal.dominant] : "bg-transparent"}`}
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="font-medium text-sm truncate">{fact.entity}</span>
+                    <span className="text-xs text-subtle shrink-0 tabular-nums">p.{fact.pageNumber}</span>
                   </div>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                  <div className="text-sm text-muted truncate">
+                    {fact.attribute}: <span className="text-foreground">{fact.value} {fact.unit ?? ""}</span>
+                  </div>
+                </div>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
       {pageCount > 1 && (
         <div className="flex items-center justify-between px-3 h-11 border-t shrink-0">
           <span className="text-xs text-subtle tabular-nums">
-            {pageStart + 1}–{Math.min(pageStart + pageSize, filteredFacts.length)} of {filteredFacts.length}
+            {page * pageSize + 1}–{Math.min(page * pageSize + pageSize, total)} of {total}
           </span>
           <div className="flex items-center gap-0.5 bg-foreground/5 rounded-md p-0.5">
             <button

@@ -34,7 +34,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: NO_FLASH_THEME_SCRIPT }} />
       </head>
-      <body className="h-full flex flex-col overflow-y-auto bg-background text-foreground">{children}</body>
+      <body className="h-full flex flex-col overflow-y-auto thin-scrollbar bg-background text-foreground">{children}</body>
     </html>
   );
 }

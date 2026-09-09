@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import type { DocumentStatus, Fact, FactRelationSummary } from "@lumen/shared";
+import type { DocumentStatus, Fact } from "@lumen/shared";
 import { useDocumentLive } from "@/lib/api/useDocumentLive";
+import type { FactsPage } from "@/lib/api/useFacts";
 import { API_URL } from "@/lib/apiUrl";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
@@ -67,24 +68,17 @@ export function DocumentWorkspace({
   documentId,
   filename,
   initialStatus,
-  initialFacts,
-  initialRelationshipCount,
-  initialRelationSummary,
+  initialFactsPage,
 }: {
   documentId: string;
   filename: string;
   initialStatus: DocumentStatus;
-  initialFacts: Fact[];
-  initialRelationshipCount: number;
-  initialRelationSummary: Record<string, FactRelationSummary>;
+  initialFactsPage: FactsPage;
 }) {
-  const { status, facts, relationshipCount, relationSummary } = useDocumentLive(
-    documentId,
-    initialStatus,
-    initialFacts,
-    initialRelationshipCount,
-    initialRelationSummary,
-  );
+  const { status, factCount, relationshipCount } = useDocumentLive(documentId, initialStatus, {
+    factCount: initialFactsPage.total,
+    relationshipCount: initialFactsPage.relationshipCount,
+  });
   const [selectedFact, setSelectedFact] = useState<Fact | null>(null);
   const { width: sidebarWidth, isDragging, startDragging } = useResizableSidebarWidth();
 
@@ -107,7 +101,7 @@ export function DocumentWorkspace({
             {status.error && <p className="text-xs text-danger mt-0.5 truncate">{status.error}</p>}
           </div>
           <p className="text-xs text-subtle">
-            <span className="text-foreground font-medium tabular-nums">{facts.length}</span> facts ·{" "}
+            <span className="text-foreground font-medium tabular-nums">{factCount}</span> facts ·{" "}
             <span className="text-foreground font-medium tabular-nums">{relationshipCount}</span> relationships ·{" "}
             <span className="text-foreground font-medium tabular-nums">{status.pages_total}</span> pages
           </p>
@@ -115,11 +109,11 @@ export function DocumentWorkspace({
         </div>
         <div className="flex-1 min-h-0">
           <FactList
-            facts={facts}
+            documentId={documentId}
             selectedFactId={selectedFact?.id ?? null}
             onSelect={setSelectedFact}
             documentStatus={status.status}
-            relationSummary={relationSummary}
+            initialFactsPage={initialFactsPage}
           />
         </div>
       </aside>

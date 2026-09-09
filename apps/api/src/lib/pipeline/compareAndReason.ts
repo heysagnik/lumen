@@ -3,9 +3,10 @@ import { db } from "../db/client.js";
 import { facts, factRelationships } from "../db/schema.js";
 import { classifyRelationshipBatch, type RelationshipVerdict } from "../llm/classifyRelationship.js";
 import { compareNumericFacts } from "./numericCompare.js";
+import { invalidateFactsCache } from "../cache/factsCache.js";
 
-const NEIGHBOR_LIMIT = 4;
-const MAX_NEIGHBOR_DISTANCE = 0.35;
+const NEIGHBOR_LIMIT = Number(process.env.RELATIONSHIP_NEIGHBOR_LIMIT ?? 12);
+const MAX_NEIGHBOR_DISTANCE = Number(process.env.RELATIONSHIP_MAX_NEIGHBOR_DISTANCE ?? 0.5);
 
 interface FactRow {
   id: string;
@@ -115,6 +116,10 @@ export async function compareAndReasonForFact(newFactId: string): Promise<number
           })
           .onConflictDoNothing()
           .returning({ id: factRelationships.id });
+        if (result.length > 0) {
+          invalidateFactsCache(newFact.documentId);
+          invalidateFactsCache(neighbor.documentId);
+        }
         return result.length > 0;
       }),
   );
