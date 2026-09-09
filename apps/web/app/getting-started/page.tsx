@@ -187,13 +187,13 @@ function CopyButton({ text }: { text: string }) {
 
 function CodeBlock({ code, language = "bash" }: { code: string; language?: string }) {
   return (
-    <div className="rounded-lg border border-border bg-surface/60 overflow-hidden my-3">
+    <div className="rounded-lg border border-border bg-surface/60 overflow-hidden my-3 w-full">
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/80 bg-foreground/[0.02]">
         <span className="text-[11px] font-mono text-subtle uppercase tracking-wider">{language}</span>
         <CopyButton text={code} />
       </div>
-      <div className="p-3.5 overflow-x-auto thin-scrollbar">
-        <pre className="font-mono text-xs leading-relaxed text-foreground">
+      <div className="p-3 sm:p-3.5 overflow-x-auto thin-scrollbar">
+        <pre className="font-mono text-[11px] sm:text-xs leading-relaxed text-foreground">
           <code>{code}</code>
         </pre>
       </div>
@@ -203,11 +203,11 @@ function CodeBlock({ code, language = "bash" }: { code: string; language?: strin
 
 function SectionHeading({ id, title }: { id: string; title: string }) {
   return (
-    <div id={id} className="flex items-center gap-3 pt-10 pb-3 scroll-mt-16">
-      <h2 className="text-sm sm:text-base font-semibold text-foreground tracking-tight shrink-0">
+    <div id={id} className="flex items-center gap-2.5 sm:gap-3 pt-8 sm:pt-10 pb-3 scroll-mt-20 sm:scroll-mt-16">
+      <h2 className="text-sm sm:text-base font-semibold text-foreground tracking-tight shrink-0 max-w-[85%] sm:max-w-none">
         {title}
       </h2>
-      <div className="h-px bg-border flex-1" />
+      <div className="h-px bg-border flex-1 min-w-[16px]" />
     </div>
   );
 }
@@ -285,35 +285,59 @@ export default function GettingStartedPage() {
         style={{ transform: `scaleX(${scrollProgress})` }}
       />
 
-      <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-50">
+      <div className="fixed top-3.5 right-3.5 sm:top-6 sm:right-6 z-50">
         <ThemeToggle />
       </div>
 
-      <div className="max-w-4xl mx-auto w-full px-6 py-12 sm:py-16 flex-1">
-        <div className="flex flex-col md:flex-row gap-10 lg:gap-14 items-start">
+      <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 py-8 sm:py-14 flex-1">
+        <div className="flex flex-col md:flex-row gap-6 md:gap-10 lg:gap-14 items-start">
           <aside className="w-full md:w-44 lg:w-48 shrink-0 md:sticky md:top-12 flex flex-col">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-2 text-sm text-subtle hover:text-foreground transition-colors group"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 14 14"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                className="shrink-0 transition-transform group-hover:-translate-x-0.5"
+            <div className="flex items-center justify-between">
+              <Link
+                href="/"
+                className="inline-flex items-center gap-2 text-sm text-subtle hover:text-foreground transition-colors group py-1"
               >
-                <path
-                  d="M5.5 4L1.5 8M1.5 8L5.5 12M1.5 8H10C11.3807 8 12.5 6.88071 12.5 5.5V5.5C12.5 4.11929 11.3807 3 10 3H8.5"
-                  stroke="currentColor"
-                  strokeWidth="1.25"
-                />
-              </svg>
-              <span>Index</span>
-            </Link>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 14 14"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="shrink-0 transition-transform group-hover:-translate-x-0.5"
+                >
+                  <path
+                    d="M5.5 4L1.5 8M1.5 8L5.5 12M1.5 8H10C11.3807 8 12.5 6.88071 12.5 5.5V5.5C12.5 4.11929 11.3807 3 10 3H8.5"
+                    stroke="currentColor"
+                    strokeWidth="1.25"
+                  />
+                </svg>
+                <span>Index</span>
+              </Link>
+            </div>
 
-            <nav aria-label="Table of Contents" className="hidden md:flex flex-col gap-2 mt-10">
+            <nav
+              aria-label="Table of Contents (Mobile)"
+              className="flex md:hidden items-center gap-1.5 overflow-x-auto thin-scrollbar pt-3 pb-2 -mx-4 px-4 border-b border-border"
+            >
+              {SECTIONS.map((section) => {
+                const isActive = activeSection === section.id;
+                return (
+                  <a
+                    key={section.id}
+                    href={`#${section.id}`}
+                    className={`text-xs whitespace-nowrap px-2.5 py-1 rounded-full border transition-colors shrink-0 ${
+                      isActive
+                        ? "bg-foreground text-background border-foreground font-medium"
+                        : "text-subtle hover:text-foreground border-border bg-surface"
+                    }`}
+                  >
+                    {section.label}
+                  </a>
+                );
+              })}
+            </nav>
+
+            <nav aria-label="Table of Contents (Desktop)" className="hidden md:flex flex-col gap-2 mt-10">
               {SECTIONS.map((section) => {
                 const isActive = activeSection === section.id;
                 return (
@@ -333,8 +357,8 @@ export default function GettingStartedPage() {
             </nav>
           </aside>
 
-          <main className="flex-1 min-w-0 max-w-2xl">
-            <header className="mb-8">
+          <main className="flex-1 min-w-0 w-full max-w-2xl">
+            <header className="mb-6 sm:mb-8">
               <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground mb-1">
                 Getting started
               </h1>
@@ -349,14 +373,14 @@ export default function GettingStartedPage() {
               </p>
               <p>
                 The REST API is completely open at{" "}
-                <code className="text-xs font-mono px-1 py-0.5 rounded bg-foreground/5 text-foreground">
+                <code className="text-xs font-mono px-1 py-0.5 rounded bg-foreground/5 text-foreground break-all">
                   {BASE_URL}
                 </code>
                 . No authentication keys or signup are required to upload files or query the reasoning graph.
               </p>
             </div>
 
-            <section className="mt-6">
+            <section className="mt-4 sm:mt-6">
               <SectionHeading id="overview" title="Protocol & conventions" />
               <div className="text-sm leading-relaxed text-foreground/90 space-y-3">
                 <p>
@@ -372,12 +396,12 @@ export default function GettingStartedPage() {
               </div>
             </section>
 
-            <section className="mt-6">
+            <section className="mt-4 sm:mt-6">
               <SectionHeading id="upload-document" title="Upload a document" />
               <div className="text-sm leading-relaxed text-foreground/90 space-y-3">
-                <div className="flex items-center gap-2 font-mono text-xs">
+                <div className="flex items-center gap-2 font-mono text-xs flex-wrap">
                   <MethodBadge method="POST" />
-                  <span className="text-foreground font-semibold">/v1/documents</span>
+                  <span className="text-foreground font-semibold break-all">/v1/documents</span>
                 </div>
                 <p>
                   Uploads a PDF for chunking, text &amp; OCR extraction, entity-attribute-value fact extraction,
@@ -390,11 +414,11 @@ export default function GettingStartedPage() {
                 />
 
                 <div className="pt-2">
-                  <div className="flex items-center gap-4 text-xs font-mono mb-2">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-mono mb-2">
                     <button
                       type="button"
                       onClick={() => setUploadTab("sync")}
-                      className={`transition-colors cursor-pointer ${
+                      className={`transition-colors cursor-pointer py-0.5 ${
                         uploadTab === "sync"
                           ? "text-foreground font-medium underline underline-offset-4 decoration-accent"
                           : "text-subtle hover:text-muted"
@@ -405,7 +429,7 @@ export default function GettingStartedPage() {
                     <button
                       type="button"
                       onClick={() => setUploadTab("async")}
-                      className={`transition-colors cursor-pointer ${
+                      className={`transition-colors cursor-pointer py-0.5 ${
                         uploadTab === "async"
                           ? "text-foreground font-medium underline underline-offset-4 decoration-accent"
                           : "text-subtle hover:text-muted"
@@ -424,12 +448,12 @@ export default function GettingStartedPage() {
               </div>
             </section>
 
-            <section className="mt-6">
+            <section className="mt-4 sm:mt-6">
               <SectionHeading id="document-status" title="Document status" />
               <div className="text-sm leading-relaxed text-foreground/90 space-y-3">
-                <div className="flex items-center gap-2 font-mono text-xs">
+                <div className="flex items-center gap-2 font-mono text-xs flex-wrap">
                   <MethodBadge method="GET" />
-                  <span className="text-foreground font-semibold">/v1/documents/:id/status</span>
+                  <span className="text-foreground font-semibold break-all">/v1/documents/:id/status</span>
                 </div>
                 <p>
                   Poll this endpoint while a document is processing. Status transitions from{" "}
@@ -447,19 +471,19 @@ export default function GettingStartedPage() {
               </div>
             </section>
 
-            <section className="mt-6">
+            <section className="mt-4 sm:mt-6">
               <SectionHeading id="list-facts" title="List facts" />
               <div className="text-sm leading-relaxed text-foreground/90 space-y-3">
-                <div className="flex items-center gap-2 font-mono text-xs">
+                <div className="flex items-center gap-2 font-mono text-xs flex-wrap">
                   <MethodBadge method="GET" />
-                  <span className="text-foreground font-semibold">/v1/documents/:id/facts</span>
+                  <span className="text-foreground font-semibold break-all">/v1/documents/:id/facts</span>
                 </div>
                 <p>
                   Returns paginated facts extracted from the document along with cross-document relationship counts.
                 </p>
 
-                <div className="border-t border-b border-border py-2 my-2 text-xs">
-                  <table className="w-full text-left">
+                <div className="border-t border-b border-border py-2 my-2 text-xs overflow-x-auto thin-scrollbar">
+                  <table className="w-full min-w-[280px] sm:min-w-[320px] text-left">
                     <thead>
                       <tr className="text-subtle font-mono">
                         <th scope="col" className="py-1 font-medium">Param</th>
@@ -501,12 +525,12 @@ export default function GettingStartedPage() {
               </div>
             </section>
 
-            <section className="mt-6">
+            <section className="mt-4 sm:mt-6">
               <SectionHeading id="single-fact" title="Single fact & relationships" />
               <div className="text-sm leading-relaxed text-foreground/90 space-y-3">
-                <div className="flex items-center gap-2 font-mono text-xs">
+                <div className="flex items-center gap-2 font-mono text-xs flex-wrap">
                   <MethodBadge method="GET" />
-                  <span className="text-foreground font-semibold">/v1/facts/:id</span>
+                  <span className="text-foreground font-semibold break-all">/v1/facts/:id</span>
                 </div>
                 <p>
                   Retrieves an individual fact with its verbatim quote, source chunk text, page number, and any
@@ -522,12 +546,12 @@ export default function GettingStartedPage() {
               </div>
             </section>
 
-            <section className="mt-6">
+            <section className="mt-4 sm:mt-6">
               <SectionHeading id="original-pdf" title="Original PDF" />
               <div className="text-sm leading-relaxed text-foreground/90 space-y-3">
-                <div className="flex items-center gap-2 font-mono text-xs">
+                <div className="flex items-center gap-2 font-mono text-xs flex-wrap">
                   <MethodBadge method="GET" />
-                  <span className="text-foreground font-semibold">/v1/documents/:id/file</span>
+                  <span className="text-foreground font-semibold break-all">/v1/documents/:id/file</span>
                 </div>
                 <p>
                   Streams the raw uploaded PDF binary with <code className="text-xs font-mono text-foreground">Content-Type: application/pdf</code>.
@@ -541,7 +565,7 @@ export default function GettingStartedPage() {
               </div>
             </section>
 
-            <section className="mt-6">
+            <section className="mt-4 sm:mt-6">
               <SectionHeading id="errors" title="Errors" />
               <div className="text-sm leading-relaxed text-foreground/90 space-y-3">
                 <p>
@@ -555,7 +579,7 @@ export default function GettingStartedPage() {
               </div>
             </section>
 
-            <div className="mt-16 pt-8 border-t border-border">
+            <div className="mt-12 sm:mt-16 pt-6 sm:pt-8 border-t border-border">
               <Footer />
             </div>
           </main>
