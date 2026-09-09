@@ -1,3 +1,5 @@
+<img src="docs/logo.svg" width="80" height="80" alt="Lumen logo" />
+
 # Lumen
 
 Lumen ingests PDF documents, extracts structured facts from their text, and cross-references those facts against each other to surface corroborations and contradictions — with every fact traceable back to the exact quote and page it came from.
