@@ -17,6 +17,8 @@ services:
       - key: CLOUDFLARE_AI_GATEWAY
         value: lumen
       - key: CLOUDFLARE_MODEL
+        value: workers-ai/@cf/meta/llama-3.3-70b-instruct-fp8-fast
+      - key: CLOUDFLARE_VISION_MODEL
         value: workers-ai/@cf/zai-org/glm-5.3-flash
       - key: CLOUDINARY_URL
         sync: false

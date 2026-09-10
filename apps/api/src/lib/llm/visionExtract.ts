@@ -1,5 +1,5 @@
 import { generateText } from "ai";
-import { getModel } from "./models.js";
+import { getVisionModel } from "./models.js";
 import { throttle } from "./throttle.js";
 
 const READ_PROMPT = `Read all text, numbers, and chart values visible in this image.
@@ -11,7 +11,7 @@ export async function readImageAsText(imageBuffer: Buffer, queueKey?: string): P
   const { text } = await throttle(
     (signal) =>
       generateText({
-        model: getModel(),
+        model: getVisionModel(),
         messages: [
           {
             role: "user",
