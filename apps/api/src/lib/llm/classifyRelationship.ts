@@ -21,12 +21,12 @@ export interface FactForComparison {
   quote: string;
 }
 
-const SYSTEM_PROMPT = `You compare two extracted facts about the same or similar attribute and decide their relationship.
-- corroborates: both facts state the same underlying value/claim, possibly with different phrasing or units.
-- contradicts: same entity/attribute/scope/time, genuinely different values, with no qualifier explaining the gap.
-- reconciled: facts look contradictory on the surface, but differing qualifiers (time period, scope, condition) explain the difference.
-- unrelated: facts are not comparable.
-Ground your explanation in the qualifiers of both facts.
+const SYSTEM_PROMPT = `You compare two extracted facts and decide their relationship. Base your judgment only on the fields given — do not assume context that isn't stated.
+- corroborates: same entity and attribute, and the values state the same underlying claim (allowing for phrasing, unit, or rounding differences).
+- contradicts: same entity and attribute (and scope/time, if given), but genuinely different values, with no qualifier that explains the gap.
+- reconciled: values look contradictory on the surface, but differing qualifiers (time period, scope, condition) explain the difference — the facts are both correct in their own context.
+- unrelated: different entities or attributes, or not enough context to compare — this is the default when in doubt.
+Ground your explanation in the specific qualifiers of both facts; do not restate the rule definitions.
 Required JSON shape: {"relationType": "corroborates" | "contradicts" | "reconciled" | "unrelated", "explanation": string, "confidence": number}`;
 
 function renderFact(label: string, fact: FactForComparison): string {
@@ -48,12 +48,12 @@ const batchVerdictSchema = z.object({
   verdicts: z.array(z.object({ index: z.number().int(), ...verdictSchema.shape })),
 });
 
-const BATCH_SYSTEM_PROMPT = `You compare a subject fact against several candidate facts and decide each pair's relationship.
-- corroborates: both facts state the same underlying value/claim, possibly with different phrasing or units.
-- contradicts: same entity/attribute/scope/time, genuinely different values, with no qualifier explaining the gap.
-- reconciled: facts look contradictory on the surface, but differing qualifiers (time period, scope, condition) explain the difference.
-- unrelated: facts are not comparable.
-Ground each explanation in the qualifiers of both facts. Return one verdict per candidate, in the same order, each tagged with its index.
+const BATCH_SYSTEM_PROMPT = `You compare a subject fact against several candidate facts and decide each pair's relationship independently. Base your judgment only on the fields given — do not assume context that isn't stated.
+- corroborates: same entity and attribute, and the values state the same underlying claim (allowing for phrasing, unit, or rounding differences).
+- contradicts: same entity and attribute (and scope/time, if given), but genuinely different values, with no qualifier that explains the gap.
+- reconciled: values look contradictory on the surface, but differing qualifiers (time period, scope, condition) explain the difference — the facts are both correct in their own context.
+- unrelated: different entities or attributes, or not enough context to compare — this is the default when in doubt.
+Ground each explanation in the specific qualifiers of that pair; do not restate the rule definitions. One candidate's verdict must not influence another's. Return one verdict per candidate, in the same order, each tagged with its index.
 Required JSON shape: {"verdicts": [{"index": number, "relationType": "corroborates" | "contradicts" | "reconciled" | "unrelated", "explanation": string, "confidence": number}]}`;
 
 export async function classifyRelationshipBatch(

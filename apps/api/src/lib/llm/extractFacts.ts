@@ -27,6 +27,7 @@ const extractionSchema = z.object({ facts: z.array(wireFactSchema) });
 
 const SYSTEM_PROMPT = `You extract discrete, checkable facts from a document excerpt.
 A fact has: entity, attribute, value, unit, qualifiers (key/value pairs such as time_period, scope, condition), and a verbatim quote copied exactly from the source text that supports the fact.
+Be exhaustive: extract every checkable fact in the excerpt, not just the most prominent ones. If a table or list has multiple rows or items, extract one fact per row/item — do not summarize or sample a subset. Every number, date, percentage, and named figure that is explicitly stated is a candidate fact.
 Only extract facts that are explicitly stated. Do not infer or calculate. Skip narrative or opinion text.
 Return an empty facts array if the excerpt has no checkable facts.
 The quote must be an exact substring of the provided text.
@@ -52,6 +53,7 @@ const batchExtractionSchema = z.object({
 
 const BATCH_SYSTEM_PROMPT = `You extract discrete, checkable facts from several document excerpts.
 A fact has: entity, attribute, value, unit, qualifiers (key/value pairs such as time_period, scope, condition), and a verbatim quote copied exactly from the source text that supports the fact.
+Be exhaustive: extract every checkable fact in each excerpt, not just the most prominent ones. If a table or list has multiple rows or items, extract one fact per row/item — do not summarize or sample a subset. Every number, date, percentage, and named figure that is explicitly stated is a candidate fact.
 Only extract facts that are explicitly stated. Do not infer or calculate. Skip narrative or opinion text.
 Each excerpt is independent — do not let facts from one excerpt leak into another's list. Return an empty facts array for an excerpt with no checkable facts.
 The quote for a fact must be an exact substring of its own excerpt's text.

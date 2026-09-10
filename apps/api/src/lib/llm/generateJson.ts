@@ -23,7 +23,7 @@ export async function generateJson<T>(options: {
         model: getModel(),
         system: `${options.system}\n\n${JSON_ONLY_INSTRUCTION}`,
         prompt: options.prompt,
-        maxOutputTokens: 4096,
+        maxOutputTokens: 6144,
         abortSignal: signal,
         providerOptions: { unified: { reasoningEffort: "low" } },
       }),
