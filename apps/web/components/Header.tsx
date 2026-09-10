@@ -32,16 +32,13 @@ export function Header() {
         </a>
         <Link
           href="/getting-started"
-          className="btn-3d group relative inline-flex h-8 shrink-0 select-none items-center rounded-lg bg-accent px-2.5 text-[13px] font-medium whitespace-nowrap text-accent-foreground shadow-[0_1px_2px_oklch(0_0_0/0.12),0_4px_10px_oklch(0_0_0/0.14)] transition-transform duration-150 active:scale-[0.96] sm:px-3"
+          className="btn-3d group relative inline-flex h-8 shrink-0 select-none items-center rounded-lg bg-accent px-2 text-[12.5px] font-medium whitespace-nowrap text-accent-foreground shadow-[0_1px_2px_oklch(0_0_0/0.12),0_4px_10px_oklch(0_0_0/0.14)] transition-transform duration-150 active:scale-[0.96] sm:px-3 sm:text-[13px]"
         >
           <span
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 rounded-[inherit] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.55)] transition-opacity duration-150 group-hover:opacity-80"
           />
-          <span className="relative">
-            <span className="sm:hidden">Start</span>
-            <span className="hidden sm:inline">Getting Started</span>
-          </span>
+          <span className="relative">Getting Started</span>
         </Link>
         <ThemeToggle />
       </nav>

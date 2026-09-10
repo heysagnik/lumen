@@ -321,29 +321,7 @@ export default function GettingStartedPage() {
               <span>Index</span>
             </Link>
 
-            <nav
-              aria-label="Table of Contents (Mobile)"
-              className="flex md:hidden items-center gap-1.5 overflow-x-auto thin-scrollbar pt-3 pb-2 -mx-4 px-4 border-b border-border"
-            >
-              {SECTIONS.map((section) => {
-                const isActive = activeSection === section.id;
-                return (
-                  <a
-                    key={section.id}
-                    href={`#${section.id}`}
-                    className={`text-xs whitespace-nowrap px-2.5 py-1 rounded-full border transition-colors shrink-0 ${
-                      isActive
-                        ? "bg-foreground text-background border-foreground font-medium"
-                        : "text-subtle hover:text-foreground border-border bg-surface"
-                    }`}
-                  >
-                    {section.label}
-                  </a>
-                );
-              })}
-            </nav>
-
-            <nav aria-label="Table of Contents (Desktop)" className="hidden md:flex flex-col gap-2 mt-10">
+            <nav aria-label="Table of Contents" className="hidden md:flex flex-col gap-2 mt-10">
               {SECTIONS.map((section) => {
                 const isActive = activeSection === section.id;
                 return (
