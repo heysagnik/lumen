@@ -18,6 +18,8 @@ services:
         value: lumen
       - key: CLOUDFLARE_MODEL
         value: workers-ai/@cf/zai-org/glm-5.3-flash
+      - key: CLOUDINARY_URL
+        sync: false
 
   - type: web
     name: lumen-web

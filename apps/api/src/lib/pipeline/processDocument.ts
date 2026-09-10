@@ -1,5 +1,5 @@
 import pLimit from "p-limit";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { documents, chunks } from "../db/schema.js";
 import { extractPages } from "../pdf/extract.js";
@@ -39,9 +39,23 @@ interface PersistedChunk {
   pageNumber: number;
 }
 
+const PROGRESS_UPDATE_INTERVAL_MS = 1500;
+
 async function collectDocumentChunks(documentId: string, buffer: Buffer): Promise<PersistedChunk[]> {
   const pages = await extractPages(buffer);
   await db.update(documents).set({ pageCount: pages.length }).where(eq(documents.id, documentId));
+
+  let pagesProcessed = 0;
+  let lastFlushed = 0;
+  let lastFlushedAt = 0;
+  const flushProgress = async (force: boolean) => {
+    if (pagesProcessed === lastFlushed) return;
+    const now = Date.now();
+    if (!force && now - lastFlushedAt < PROGRESS_UPDATE_INTERVAL_MS) return;
+    lastFlushed = pagesProcessed;
+    lastFlushedAt = now;
+    await db.update(documents).set({ pagesProcessed }).where(eq(documents.id, documentId));
+  };
 
   const limit = pLimit(PAGE_CONCURRENCY);
   const chunksByPage = await Promise.all(
@@ -49,14 +63,13 @@ async function collectDocumentChunks(documentId: string, buffer: Buffer): Promis
       limit(async () => {
         const resolvedText = await resolvePageText(page, buffer, documentId);
         const pageChunks = chunkPage({ ...page, text: resolvedText }).filter((chunk) => !isBoilerplate(chunk.text));
-        await db
-          .update(documents)
-          .set({ pagesProcessed: sql`${documents.pagesProcessed} + 1` })
-          .where(eq(documents.id, documentId));
+        pagesProcessed += 1;
+        await flushProgress(false);
         return pageChunks;
       }),
     ),
   );
+  await flushProgress(true);
 
   return persistChunks(documentId, chunksByPage.flat());
 }

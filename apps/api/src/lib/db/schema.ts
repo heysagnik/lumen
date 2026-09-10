@@ -6,21 +6,17 @@ import {
   boolean,
   jsonb,
   real,
-  customType,
   timestamp,
   vector,
   index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-const bytea = customType<{ data: Buffer }>({
-  dataType: () => "bytea",
-});
-
 export const documents = pgTable("documents", {
   id: uuid("id").primaryKey().defaultRandom(),
   filename: text("filename").notNull(),
-  fileData: bytea("file_data").notNull(),
+  fileUrl: text("file_url").notNull(),
+  filePublicId: text("file_public_id").notNull(),
   status: text("status").notNull().default("processing"),
   pageCount: integer("page_count").notNull().default(0),
   pagesProcessed: integer("pages_processed").notNull().default(0),

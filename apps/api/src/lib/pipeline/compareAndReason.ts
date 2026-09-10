@@ -20,12 +20,18 @@ interface FactRow {
 }
 
 async function findNeighborFacts(newFact: FactRow, embedding: number[]): Promise<FactRow[]> {
+  const vectorParam = `[${embedding.join(",")}]`;
   const rows = await db.execute(sql`
+    with scored as (
+      select id, document_id, entity, attribute, value, unit, qualifiers, quote,
+             embedding <=> ${vectorParam}::vector as dist
+      from ${facts}
+      where document_id != ${newFact.documentId}
+    )
     select id, document_id, entity, attribute, value, unit, qualifiers, quote
-    from ${facts}
-    where document_id != ${newFact.documentId}
-      and embedding <=> ${sql.raw(`'[${embedding.join(",")}]'`)}::vector < ${MAX_NEIGHBOR_DISTANCE}
-    order by embedding <=> ${sql.raw(`'[${embedding.join(",")}]'`)}::vector
+    from scored
+    where dist < ${MAX_NEIGHBOR_DISTANCE}
+    order by dist
     limit ${NEIGHBOR_LIMIT}
   `);
   return rows.rows as unknown as FactRow[];
@@ -76,12 +82,20 @@ function deterministicVerdict(a: FactRow, b: FactRow): RelationshipVerdict | nul
   return null;
 }
 
+const newFactColumns = {
+  id: facts.id,
+  documentId: facts.documentId,
+  entity: facts.entity,
+  attribute: facts.attribute,
+  value: facts.value,
+  unit: facts.unit,
+  qualifiers: facts.qualifiers,
+  quote: facts.quote,
+  embedding: facts.embedding,
+} as const;
+
 export async function compareAndReasonForFact(newFactId: string): Promise<number> {
-  const [newFact] = await db
-    .select()
-    .from(facts)
-    .where(sql`${facts.id} = ${newFactId}`)
-    .limit(1);
+  const [newFact] = await db.select(newFactColumns).from(facts).where(sql`${facts.id} = ${newFactId}`).limit(1);
   if (!newFact || !newFact.embedding) return 0;
 
   const neighbors = await findNeighborFacts(newFact as FactRow, newFact.embedding as number[]);
@@ -100,29 +114,30 @@ export async function compareAndReasonForFact(newFactId: string): Promise<number
     return { neighbor: entry.neighbor, verdict: llmVerdicts[llmIndex] };
   });
 
-  const writes = await Promise.all(
-    verdicts
-      .filter(({ verdict }) => verdict.relationType !== "unrelated")
-      .map(async ({ neighbor, verdict }) => {
-        const [factAId, factBId] = canonicalPair(newFact.id, neighbor.id);
-        const result = await db
-          .insert(factRelationships)
-          .values({
-            factAId,
-            factBId,
-            relationType: verdict.relationType,
-            explanation: verdict.explanation,
-            confidence: verdict.confidence,
-          })
-          .onConflictDoNothing()
-          .returning({ id: factRelationships.id });
-        if (result.length > 0) {
-          invalidateFactsCache(newFact.documentId);
-          invalidateFactsCache(neighbor.documentId);
-        }
-        return result.length > 0;
-      }),
-  );
+  const related = verdicts.filter(({ verdict }) => verdict.relationType !== "unrelated");
+  if (related.length === 0) return 0;
 
-  return writes.filter(Boolean).length;
+  const inserted = await db
+    .insert(factRelationships)
+    .values(
+      related.map(({ neighbor, verdict }) => {
+        const [factAId, factBId] = canonicalPair(newFact.id, neighbor.id);
+        return {
+          factAId,
+          factBId,
+          relationType: verdict.relationType,
+          explanation: verdict.explanation,
+          confidence: verdict.confidence,
+        };
+      }),
+    )
+    .onConflictDoNothing()
+    .returning({ id: factRelationships.id });
+
+  if (inserted.length > 0) {
+    invalidateFactsCache(newFact.documentId);
+    for (const { neighbor } of related) invalidateFactsCache(neighbor.documentId);
+  }
+
+  return inserted.length;
 }

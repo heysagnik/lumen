@@ -7,6 +7,7 @@ import { extractPages } from "../lib/pdf/extract.js";
 import { processDocument, SYNC_PAGE_THRESHOLD } from "../lib/pipeline/processDocument.js";
 import { asyncHandler } from "../asyncHandler.js";
 import { getCachedFacts, setCachedFacts } from "../lib/cache/factsCache.js";
+import { uploadDocument } from "../lib/storage/cloudinary.js";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -62,11 +63,20 @@ documentsRouter.post(
     }
 
     const buffer = file.buffer;
-    const pageCount = (await extractPages(buffer)).length;
+    const [pageCount, uploaded] = await Promise.all([
+      extractPages(buffer).then((pages) => pages.length),
+      uploadDocument(buffer, file.originalname),
+    ]);
 
     const [doc] = await db
       .insert(documents)
-      .values({ filename: file.originalname, fileData: buffer, status: "processing", pageCount })
+      .values({
+        filename: file.originalname,
+        fileUrl: uploaded.url,
+        filePublicId: uploaded.publicId,
+        status: "processing",
+        pageCount,
+      })
       .returning({ id: documents.id });
 
     if (pageCount <= SYNC_PAGE_THRESHOLD) {
@@ -234,7 +244,7 @@ documentsRouter.get(
   "/:id/file",
   asyncHandler(async (req, res) => {
     const [doc] = await db
-      .select({ filename: documents.filename, fileData: documents.fileData })
+      .select({ fileUrl: documents.fileUrl })
       .from(documents)
       .where(eq(documents.id, req.params.id))
       .limit(1);
@@ -244,8 +254,7 @@ documentsRouter.get(
       return;
     }
 
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `inline; filename="${doc.filename}"`);
-    res.send(doc.fileData);
+    res.setHeader("Cache-Control", "public, max-age=3600");
+    res.redirect(302, doc.fileUrl);
   }),
 );
