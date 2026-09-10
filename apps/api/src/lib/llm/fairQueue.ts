@@ -1,10 +1,4 @@
-import { createSteadyRateLimiter } from "./rateLimiter.js";
-
-const REQUESTS_PER_MINUTE = 30;
-const RATE_WINDOW_MS = 60_000;
 const DEFAULT_KEY = "global";
-
-const rateLimiter = createSteadyRateLimiter(REQUESTS_PER_MINUTE, RATE_WINDOW_MS);
 
 const queuesByKey = new Map<string, (() => void)[]>();
 const keyOrder: string[] = [];
@@ -38,13 +32,12 @@ function pruneEmptyKeys(): void {
   }
 }
 
-async function drainQueues(): Promise<void> {
+function drainQueues(): void {
   if (isDraining) return;
   isDraining = true;
 
   let nextKey = pickNextKey();
   while (nextKey !== null) {
-    await rateLimiter.acquire();
     const queue = queuesByKey.get(nextKey);
     const admit = queue?.shift();
     pruneEmptyKeys();

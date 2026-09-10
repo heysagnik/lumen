@@ -6,7 +6,7 @@ const MAX_CONCURRENT_CALLS = 10;
 
 const concurrencyLimiter = pLimit(MAX_CONCURRENT_CALLS);
 
-export async function throttle<T>(fn: () => Promise<T>, queueKey?: string): Promise<T> {
+export async function throttle<T>(fn: (signal: AbortSignal) => Promise<T>, queueKey?: string): Promise<T> {
   await acquireFairTurn(queueKey);
-  return concurrencyLimiter(() => withRetry(fn));
+  return concurrencyLimiter(() => withRetry(fn, queueKey));
 }

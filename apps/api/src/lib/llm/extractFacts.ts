@@ -45,3 +45,48 @@ export async function extractFacts(chunkText: string, queueKey?: string): Promis
   });
   return result.facts.map((fact) => ({ ...fact, qualifiers: toQualifierRecord(fact.qualifiers) }));
 }
+
+const batchExtractionSchema = z.object({
+  chunks: z.array(z.object({ index: z.number().int(), facts: z.array(wireFactSchema) })),
+});
+
+const BATCH_SYSTEM_PROMPT = `You extract discrete, checkable facts from several document excerpts.
+A fact has: entity, attribute, value, unit, qualifiers (key/value pairs such as time_period, scope, condition), and a verbatim quote copied exactly from the source text that supports the fact.
+Only extract facts that are explicitly stated. Do not infer or calculate. Skip narrative or opinion text.
+Each excerpt is independent — do not let facts from one excerpt leak into another's list. Return an empty facts array for an excerpt with no checkable facts.
+The quote for a fact must be an exact substring of its own excerpt's text.
+Return one entry per excerpt, in the same order, each tagged with its index.
+Required JSON shape: {"chunks": [{"index": number, "facts": [{"entity": string, "attribute": string, "value": string, "unit": string | null, "qualifiers": [{"key": string, "value": string}], "quote": string, "confidence": number}]}]}`;
+
+function renderChunk(index: number, text: string): string {
+  return `Excerpt ${index}:\n${text}`;
+}
+
+export interface IndexedChunkText {
+  index: number;
+  text: string;
+}
+
+export async function extractFactsBatch(
+  chunks: IndexedChunkText[],
+  queueKey?: string,
+): Promise<Map<number, ExtractedFact[]>> {
+  if (chunks.length === 0) return new Map();
+
+  const prompt = chunks.map((chunk) => renderChunk(chunk.index, chunk.text)).join("\n\n");
+
+  const result = await generateJson({
+    system: BATCH_SYSTEM_PROMPT,
+    prompt,
+    schema: batchExtractionSchema,
+    queueKey,
+  });
+
+  const byIndex = new Map(result.chunks.map((entry) => [entry.index, entry.facts]));
+  return new Map(
+    chunks.map((chunk) => [
+      chunk.index,
+      (byIndex.get(chunk.index) ?? []).map((fact) => ({ ...fact, qualifiers: toQualifierRecord(fact.qualifiers) })),
+    ]),
+  );
+}

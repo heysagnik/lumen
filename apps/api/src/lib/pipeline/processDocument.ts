@@ -6,13 +6,14 @@ import { extractPages } from "../pdf/extract.js";
 import { chunkPage, isBoilerplate, type PageChunk } from "../pdf/chunk.js";
 import { resolvePageText } from "./resolvePageText.js";
 import { createAttributeResolver } from "./attributeRegistry.js";
-import { extractFactsFromChunk } from "./extractFromChunk.js";
+import { extractFactsFromChunkGroup, type ChunkContext } from "./extractFromChunk.js";
 import { compareAndReasonForFact } from "./compareAndReason.js";
-import { retryWithBackoff } from "./retryWithBackoff.js";
 import { settleAll } from "./settleAll.js";
 
 const PAGE_CONCURRENCY = 6;
-export const SYNC_PAGE_THRESHOLD = 2;
+const PIPELINE_ITEM_CEILING_MS = 200000;
+const EXTRACTION_GROUP_SIZE = 1;
+const EXTRACTION_GROUP_CHAR_BUDGET = 2000;
 
 export interface ProcessResult {
   factCount: number;
@@ -100,21 +101,38 @@ interface ExtractionOutcome {
   failedChunkCount: number;
 }
 
+function groupChunks(documentId: string, persistedChunks: PersistedChunk[]): ChunkContext[][] {
+  const groups: ChunkContext[][] = [];
+  let current: ChunkContext[] = [];
+  let currentChars = 0;
+
+  for (const chunk of persistedChunks) {
+    const context: ChunkContext = {
+      documentId,
+      chunkId: chunk.id,
+      chunkText: chunk.text,
+      pageNumber: chunk.pageNumber,
+    };
+    if (current.length > 0 && (current.length >= EXTRACTION_GROUP_SIZE || currentChars + chunk.text.length > EXTRACTION_GROUP_CHAR_BUDGET)) {
+      groups.push(current);
+      current = [];
+      currentChars = 0;
+    }
+    current.push(context);
+    currentChars += chunk.text.length;
+  }
+  if (current.length > 0) groups.push(current);
+
+  return groups;
+}
+
 async function extractFactsFromDocument(documentId: string, persistedChunks: PersistedChunk[]): Promise<ExtractionOutcome> {
   const attributeResolver = createAttributeResolver();
+  const groups = groupChunks(documentId, persistedChunks);
 
   const { values, failureCount } = await settleAll(
-    persistedChunks.map((chunk) =>
-      retryWithBackoff(() =>
-        extractFactsFromChunk({
-          documentId,
-          chunkId: chunk.id,
-          chunkText: chunk.text,
-          pageNumber: chunk.pageNumber,
-          attributeResolver,
-        }),
-      ),
-    ),
+    groups.map((group) => extractFactsFromChunkGroup(group, attributeResolver)),
+    { perItemTimeoutMs: PIPELINE_ITEM_CEILING_MS },
   );
 
   return { factIds: values.flat(), failedChunkCount: failureCount };
@@ -127,7 +145,8 @@ interface ComparisonOutcome {
 
 async function compareNewFacts(factIds: string[]): Promise<ComparisonOutcome> {
   const { values, failureCount } = await settleAll(
-    factIds.map((factId) => retryWithBackoff(() => compareAndReasonForFact(factId))),
+    factIds.map((factId) => compareAndReasonForFact(factId)),
+    { perItemTimeoutMs: PIPELINE_ITEM_CEILING_MS },
   );
   return {
     relationshipCount: values.reduce((total, count) => total + count, 0),

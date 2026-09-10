@@ -9,7 +9,7 @@ Do not add commentary or values that aren't visibly present.`;
 
 export async function readImageAsText(imageBuffer: Buffer, queueKey?: string): Promise<string> {
   const { text } = await throttle(
-    () =>
+    (signal) =>
       generateText({
         model: getModel(),
         messages: [
@@ -22,6 +22,8 @@ export async function readImageAsText(imageBuffer: Buffer, queueKey?: string): P
           },
         ],
         maxRetries: 0,
+        abortSignal: signal,
+        providerOptions: { unified: { reasoningEffort: "low" } },
       }),
     queueKey,
   );

@@ -18,11 +18,13 @@ export async function generateJson<T>(options: {
   queueKey?: string;
 }): Promise<T> {
   const { text } = await throttle(
-    () =>
+    (signal) =>
       generateText({
         model: getModel(),
         system: `${options.system}\n\n${JSON_ONLY_INSTRUCTION}`,
         prompt: options.prompt,
+        abortSignal: signal,
+        providerOptions: { unified: { reasoningEffort: "low" } },
       }),
     options.queueKey,
   );
