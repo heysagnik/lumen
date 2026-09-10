@@ -76,8 +76,8 @@ export function UploadForm() {
         }}
         onDragLeave={() => setIsDraggingOver(false)}
         onDrop={handleDrop}
-        className={`group relative flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-10 text-center cursor-pointer transition-colors duration-150 ${
-          isDraggingOver ? "border-accent bg-accent/5" : "border-border-strong hover:border-subtle"
+        className={`group relative flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed bg-surface p-10 text-center cursor-pointer shadow-[0_1px_2px_oklch(0_0_0/0.04),0_4px_12px_oklch(0_0_0/0.04)] transition-colors duration-150 ${
+          isDraggingOver ? "border-accent bg-accent/5" : "border-border-dropzone hover:border-border-dropzone-hover"
         } ${uploading ? "pointer-events-none opacity-60" : ""}`}
       >
         <input

@@ -8,6 +8,8 @@
   --subtle: #a1a1aa;
   --border: oklch(0 0 0 / 0.08);
   --border-strong: oklch(0 0 0 / 0.14);
+  --border-dropzone: oklch(0 0 0 / 0.24);
+  --border-dropzone-hover: oklch(0 0 0 / 0.4);
   --accent: #2563eb;
   --accent-foreground: #ffffff;
   --success: #16a34a;
@@ -29,6 +31,8 @@
   --color-subtle: var(--subtle);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
+  --color-border-dropzone: var(--border-dropzone);
+  --color-border-dropzone-hover: var(--border-dropzone-hover);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-success: var(--success);
@@ -52,6 +56,8 @@
     --subtle: #71717a;
     --border: oklch(1 0 0 / 0.1);
     --border-strong: oklch(1 0 0 / 0.16);
+    --border-dropzone: oklch(1 0 0 / 0.26);
+    --border-dropzone-hover: oklch(1 0 0 / 0.44);
     --accent: #3b82f6;
     --success-bg: oklch(0.27 0.06 150);
     --danger-bg: oklch(0.27 0.08 25);
@@ -69,6 +75,8 @@
   --subtle: #71717a;
   --border: oklch(1 0 0 / 0.1);
   --border-strong: oklch(1 0 0 / 0.16);
+  --border-dropzone: oklch(1 0 0 / 0.26);
+  --border-dropzone-hover: oklch(1 0 0 / 0.44);
   --accent: #3b82f6;
   --success-bg: oklch(0.27 0.06 150);
   --danger-bg: oklch(0.27 0.08 25);
@@ -156,6 +164,25 @@ body,
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.btn-3d {
+  --btn-3d-highlight: oklch(1 0 0 / 0.65);
+  transition: transform 160ms var(--ease-out);
+}
+
+.btn-3d:active {
+  transition-duration: 80ms;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .btn-3d {
+    --btn-3d-highlight: oklch(1 0 0 / 0.08);
+  }
+}
+
+:root[data-theme="dark"] .btn-3d {
+  --btn-3d-highlight: oklch(1 0 0 / 0.08);
 }
 
 @media (prefers-reduced-motion: reduce) {
