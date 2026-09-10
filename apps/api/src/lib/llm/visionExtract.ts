@@ -17,7 +17,7 @@ export async function readImageAsText(imageBuffer: Buffer, queueKey?: string): P
             role: "user",
             content: [
               { type: "text", text: READ_PROMPT },
-              { type: "image", image: imageBuffer },
+              { type: "file", data: imageBuffer, mediaType: "image/png" },
             ],
           },
         ],

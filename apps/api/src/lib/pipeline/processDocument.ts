@@ -12,8 +12,8 @@ import { settleAll } from "./settleAll.js";
 
 const PAGE_CONCURRENCY = 6;
 const PIPELINE_ITEM_CEILING_MS = 200000;
-const EXTRACTION_GROUP_SIZE = 6;
-const EXTRACTION_GROUP_CHAR_BUDGET = 6000;
+const EXTRACTION_GROUP_SIZE = 3;
+const EXTRACTION_GROUP_CHAR_BUDGET = 3000;
 
 export interface ProcessResult {
   factCount: number;

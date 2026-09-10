@@ -26,9 +26,8 @@ function findHighlightRects(items: TextItem[], quote: string, viewport: PageView
 
   let concatenated = "";
   const itemRanges = items.map((item) => {
-    const separator = item.hasEOL ? "\n" : " ";
     const start = concatenated.length;
-    concatenated += normalize(item.str) + separator;
+    concatenated += normalize(item.str) + " ";
     return { item, start, end: concatenated.length };
   });
 

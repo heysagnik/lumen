@@ -1,3 +1,4 @@
+import { standardFontDataUrl, cMapUrl } from "./pdfjsAssets.js";
 
 const RENDER_SCALE = 2;
 
@@ -13,7 +14,15 @@ async function getCachedDoc(buffer: Buffer): Promise<PdfjsDoc> {
   const cached = docCache.get(buffer);
   if (cached) return cached;
 
-  const docPromise = getPdfjs().then((pdfjs) => pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise);
+  const docPromise = getPdfjs().then(
+    (pdfjs) =>
+      pdfjs.getDocument({
+        data: new Uint8Array(buffer),
+        standardFontDataUrl,
+        cMapUrl,
+        cMapPacked: true,
+      }).promise,
+  );
   docCache.set(buffer, docPromise);
   return docPromise;
 }

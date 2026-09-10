@@ -1,3 +1,4 @@
+import { standardFontDataUrl, cMapUrl } from "./pdfjsAssets.js";
 
 export interface PageImageRef {
   x: number;
@@ -22,7 +23,12 @@ async function getPdfjs() {
 
 export async function extractPages(buffer: Buffer): Promise<ExtractedPage[]> {
   const pdfjs = await getPdfjs();
-  const doc = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
+  const doc = await pdfjs.getDocument({
+    data: new Uint8Array(buffer),
+    standardFontDataUrl,
+    cMapUrl,
+    cMapPacked: true,
+  }).promise;
   const pages: ExtractedPage[] = [];
 
   for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber++) {
